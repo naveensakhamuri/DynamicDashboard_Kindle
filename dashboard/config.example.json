@@ -1,0 +1,53 @@
+{
+  "location": {
+    "name": "London",
+    "postcode": "SW1A 1AA",
+    "latitude": 51.5074,
+    "longitude": -0.1278
+  },
+  "calendars": [
+    {
+      "name": "Personal",
+      "url": "https://calendar.google.com/calendar/ical/your_email%40gmail.com/private-xxxxxxxxxxxxxxxx/basic.ics"
+    },
+    {
+      "name": "Work",
+      "url": "https://calendar.google.com/calendar/ical/work_email%40gmail.com/private-yyyyyyyyyyyyyyyy/basic.ics"
+    }
+  ],
+  "smart_home": {
+    "samsung_smartthings": {
+      "personal_access_token": "your-smartthings-pat-token-here",
+      "devices": {
+        "livingroom_tv": "your-device-uuid-1",
+        "bedroom_tv": "your-device-uuid-2",
+        "office_monitor": "your-device-uuid-3",
+        "smart_plug": "your-device-uuid-4",
+        "light_1": "your-device-uuid-5",
+        "lobby": "your-device-uuid-6"
+      }
+    },
+    "tapo_plug": {
+      "ip": "",
+      "username": "",
+      "password": ""
+    },
+    "alexa_webhook": {
+      "url": ""
+    }
+  },
+  "ai": {
+    "claude_config_path": "~/.claude.json",
+    "gemini_cli": "/usr/local/bin/gemini"
+  },
+  "github": {
+    "author": "@me"
+  },
+  "kindle": {
+    "ip": "192.168.1.100",
+    "ssh_key": "~/.ssh/id_kindle",
+    "screens_dir": "/mnt/us/dashboard",
+    "rotation": 270,
+    "power_mode": "saver"
+  }
+}

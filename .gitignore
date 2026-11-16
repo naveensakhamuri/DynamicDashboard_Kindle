@@ -1,0 +1,47 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+build/
+dist/
+*.egg-info/
+
+# Third-party jailbreak packages & binaries (downloaded separately)
+packages/
+winterbreak2/
+jailbreak/
+
+# Configuration with personal credentials & tokens (NEVER COMMIT)
+dashboard/config.json
+*.key
+*.pem
+*.token
+
+# Logs & temporary files
+*.log
+*.err
+*.done
+.test_write
+
+# Runtime generated dashboard screens
+dashboard/screens/*.png
+!dashboard/screens/.gitkeep
+docs/images/
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
