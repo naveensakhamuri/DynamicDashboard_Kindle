@@ -30,6 +30,14 @@ lipc-get-prop com.lab126.powerd flIntensity > /mnt/us/dashboard/brightness 2>/de
 
 # Host server IP (pass as first argument or via KINDLE_HOST_IP env var, default 192.168.1.100)
 HOST_IP="${1:-${KINDLE_HOST_IP:-192.168.1.100}}"
+[ -f /mnt/us/dashboard/host_ip ] && HOST_IP=$(cat /mnt/us/dashboard/host_ip 2>/dev/null)
+[ -z "$HOST_IP" ] && HOST_IP="192.168.1.100"
+
+# Read auth token if present
+AUTH_TOKEN=""
+[ -f /mnt/us/dashboard/auth_token ] && AUTH_TOKEN=$(cat /mnt/us/dashboard/auth_token 2>/dev/null | tr -d '\r\n ')
+TOKEN_PARAM=""
+[ -n "$AUTH_TOKEN" ] && TOKEN_PARAM="&token=$AUTH_TOKEN"
 
 # Kill any previous ticker instances
 killall -9 sleep 2>/dev/null || true
@@ -64,7 +72,7 @@ fbink -g file=/mnt/us/dashboard/kindle_tab0.png -f >/dev/null 2>&1
                 lipc-set-prop com.lab126.powerd flIntensity 0 2>/dev/null || true
                 sleep 1800
                 CUR_TAB=$(cat /mnt/us/dashboard/current_tab 2>/dev/null || echo 0)
-                curl -s --connect-timeout 4 "http://$HOST_IP:8000/tick?tab=$CUR_TAB&ts=$(date +%s)" >/dev/null 2>&1
+                curl -s --connect-timeout 4 "http://$HOST_IP:8000/tick?tab=$CUR_TAB&ts=$(date +%s)$TOKEN_PARAM" >/dev/null 2>&1
                 continue
             fi
 
@@ -93,7 +101,7 @@ fbink -g file=/mnt/us/dashboard/kindle_tab0.png -f >/dev/null 2>&1
                     lipc-set-prop com.lab126.powerd flIntensity 0 2>/dev/null || true
                     sleep 3600
                     CUR_TAB=$(cat /mnt/us/dashboard/current_tab 2>/dev/null || echo 0)
-                    curl -s --connect-timeout 4 "http://$HOST_IP:8000/tick?tab=$CUR_TAB&ts=$(date +%s)" >/dev/null 2>&1
+                    curl -s --connect-timeout 4 "http://$HOST_IP:8000/tick?tab=$CUR_TAB&ts=$(date +%s)$TOKEN_PARAM" >/dev/null 2>&1
                     continue
                 fi
 
@@ -110,19 +118,20 @@ fbink -g file=/mnt/us/dashboard/kindle_tab0.png -f >/dev/null 2>&1
 
         sleep "$SLEEP_TIME"
         CUR_TAB=$(cat /mnt/us/dashboard/current_tab 2>/dev/null || echo 0)
-        curl -s --connect-timeout 4 "http://$HOST_IP:8000/tick?tab=$CUR_TAB&ts=$(date +%s)" >/dev/null 2>&1
+        curl -s --connect-timeout 4 "http://$HOST_IP:8000/tick?tab=$CUR_TAB&ts=$(date +%s)$TOKEN_PARAM" >/dev/null 2>&1
     done
 ) &
 
 echo "[Touch Daemon] Starting touch listener on /dev/input/event1 with smart battery ticker..."
 
-/usr/bin/script -q -c "/mnt/us/usbnet/bin/evtest /dev/input/event1" /dev/null | awk -v host="$HOST_IP" '
+/usr/bin/script -q -c "/mnt/us/usbnet/bin/evtest /dev/input/event1" /dev/null | awk -v host="$HOST_IP" -v token="$AUTH_TOKEN" '
 BEGIN {
     cur_tab = 0;
     raw_x = 0;
     raw_y = 0;
     cur_bri = 0;
     cur_rot = 270;
+    tok_param = (token != "" ? "&token=" token : "");
 }
 /code 53 \(ABS_MT_POSITION_X\)/ { raw_x = $NF }
 /code 54 \(ABS_MT_POSITION_Y\)/ { raw_y = $NF }
@@ -157,19 +166,19 @@ BEGIN {
     if (y_l >= 10 && y_l <= 88 && x_l >= 1345) {
         print "[GEAR] Gear icon tapped! Toggling settings...";
         fflush();
-        system("curl -s --connect-timeout 3 \"http://" host ":8000/toggle_settings\" >/dev/null 2>&1 &");
+        system("curl -s --connect-timeout 3 \"http://" host ":8000/toggle_settings?tab=" cur_tab tok_param "\" >/dev/null 2>&1 &");
     }
     # 1b. CLOCK / HEADER TAP: Instant force refresh
     else if (y_l >= 10 && y_l <= 88 && x_l < 1345) {
         print "[HEADER] Clock/Header tapped! Instant refresh...";
         fflush();
-        system("curl -s --connect-timeout 3 \"http://" host ":8000/force_refresh?tab=" cur_tab "\" >/dev/null 2>&1 &");
+        system("curl -s --connect-timeout 3 \"http://" host ":8000/force_refresh?tab=" cur_tab tok_param "\" >/dev/null 2>&1 &");
     }
     # 2. IF SETTINGS DRAWER IS OPEN: All taps go directly to /tap
     else if (settings_open == 1) {
         print "[SETTINGS TAP] Tab " cur_tab " @ (" x_l "," y_l ")";
         fflush();
-        system("curl -s --connect-timeout 3 \"http://" host ":8000/tap?tab=" cur_tab "&x=" x_l "&y=" y_l "\" >/dev/null 2>&1 &");
+        system("curl -s --connect-timeout 3 \"http://" host ":8000/tap?tab=" cur_tab "&x=" x_l "&y=" y_l tok_param "\" >/dev/null 2>&1 &");
     }
     # 3. IF SETTINGS DRAWER IS CLOSED:
     # A) HEADER TABS AREA: Y_L between 88 and 180 (5 equal tabs: 285px each)
@@ -193,14 +202,14 @@ BEGIN {
             fflush();
             system("echo " cur_tab " > /mnt/us/dashboard/current_tab");
             system("fbink -g file=/mnt/us/dashboard/kindle_tab" cur_tab ".png -W A2 >/dev/null 2>&1");
-            system("curl -s --connect-timeout 2 \"http://" host ":8000/tab_switched?tab=" cur_tab "\" >/dev/null 2>&1 &");
+            system("curl -s --connect-timeout 2 \"http://" host ":8000/tab_switched?tab=" cur_tab tok_param "\" >/dev/null 2>&1 &");
         }
     }
     # B) CONTENT AREA: Y_L > 180
     else if (y_l > 180) {
         print "[ACTION TAP] Tab " cur_tab " @ (" x_l "," y_l ")";
         fflush();
-        system("curl -s --connect-timeout 2 \"http://" host ":8000/tap?tab=" cur_tab "&x=" x_l "&y=" y_l "\" >/dev/null 2>&1 &");
+        system("curl -s --connect-timeout 2 \"http://" host ":8000/tap?tab=" cur_tab "&x=" x_l "&y=" y_l tok_param "\" >/dev/null 2>&1 &");
     }
 }
 '

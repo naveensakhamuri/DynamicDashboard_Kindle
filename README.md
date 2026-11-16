@@ -41,10 +41,10 @@ Turn an old **Amazon Kindle Paperwhite** (or other e-ink touchscreen Kindle) int
 
 ```
 +--------------------------------------------------------------------------------------------------+
-| 04:30 PM FRI, NOV 13   18°C (No Rain)       BRI: [-] [======|   ] [+]   [⟳]   BAT: 85%            |
+| 04:30 PM FRI, NOV 13   18°C (No Rain)       BRI: [-] [======|   ] [+]   [⟳]   BAT: 85%           |
 +---------------+-------------------+-------------------+-------------------+----------------------+
 | [ OVERVIEW ]  |   CALENDAR        |    AI & DEV       |   SMART HOME      |    TV REMOTE         |
-+---------------+-------------------+-------------------+----------------------+
++---------------+-------------------+-------------------+-------------------+----------------------+
 | TODAY'S SCHEDULE                  | WEATHER & FORECAST (Open-Meteo)                              |
 | • 10:00 [Work] Team Standup       | Current: 18°C Clear (High 20° / Low 12°)                     |
 | • 14:30 [Work] Architecture Sync  | Hourly: 18:00 (17°)  |  21:00 (15°)  |  00:00 (13°)          |
@@ -239,7 +239,7 @@ This script automatically:
    - `location`: Set your city name, postcode, latitude, and longitude for Open-Meteo weather.
    - `calendars`: Add any number of private iCal calendar feeds (Personal, Work, Family).
    - `smart_home`: Add your Samsung SmartThings Personal Access Token and device UUIDs.
-   - `kindle`: Set your Kindle's local Wi-Fi IP, SSH key path, and preferred initial rotation (`90` or `270`).
+   - `kindle`: Set your Kindle's local Wi-Fi IP, SSH key path, preferred initial rotation (`90` or `270`), and optional `auth_token` (a random secret string, e.g. generated with `openssl rand -hex 16`, to authenticate incoming requests and allow secure dynamic IP updates).
 5. **Start the Server**:
    ```bash
    python3 dashboard/server.py

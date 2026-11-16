@@ -48,6 +48,7 @@
     "ssh_key": "~/.ssh/id_kindle",
     "screens_dir": "/mnt/us/dashboard",
     "rotation": 270,
-    "power_mode": "saver"
+    "power_mode": "saver",
+    "auth_token": "change-me-to-a-random-string"
   }
 }

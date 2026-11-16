@@ -10,6 +10,7 @@ import os
 import sys
 import time
 import json
+import hmac
 import logging
 import threading
 import subprocess
@@ -434,13 +435,48 @@ class DashboardHTTPHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         global current_tab, show_settings, KINDLE_IP
         client_ip = self.client_address[0]
-        logger.info(f"Incoming HTTP GET from {client_ip}: {self.path}")
-        if client_ip != "127.0.0.1" and client_ip != KINDLE_IP:
-            logger.info(f"Kindle IP updated from {KINDLE_IP} to {client_ip}")
-            KINDLE_IP = client_ip
-
         parsed = urlparse(self.path)
         qs = parse_qs(parsed.query)
+
+        # Sanitize query for logging: redact token value
+        log_path = parsed.path
+        if parsed.query:
+            safe_query_parts = []
+            for k, v in qs.items():
+                if k == "token":
+                    safe_query_parts.append(f"{k}=[REDACTED]")
+                else:
+                    for item in v:
+                        safe_query_parts.append(f"{k}={item}")
+            if safe_query_parts:
+                log_path += "?" + "&".join(safe_query_parts)
+
+        logger.info(f"Incoming HTTP GET from {client_ip}: {log_path}")
+
+        # Shared auth-token check
+        auth_token = data_service.config.get("kindle", {}).get("auth_token", "")
+        token_valid = False
+        if auth_token:
+            req_token = qs.get("token", [""])[0] or self.headers.get("X-Auth-Token", "")
+            if req_token and hmac.compare_digest(req_token, auth_token):
+                token_valid = True
+
+            # Reject requests that are missing the token or have the wrong one,
+            # except /health and requests from 127.0.0.1
+            if parsed.path != "/health" and client_ip != "127.0.0.1" and not token_valid:
+                logger.warning(f"Forbidden 403: unauthorized request from {client_ip} to {parsed.path}")
+                self.send_response(403)
+                self.send_header("Content-Type", "text/plain")
+                self.end_headers()
+                self.wfile.write(b"Forbidden: Invalid or missing auth token\n")
+                return
+
+        # Only update KINDLE_IP from client_address when the request carried a valid token.
+        # If no auth_token is configured, do NOT auto-update KINDLE_IP at all. Just use the IP from config.
+        if auth_token and token_valid:
+            if client_ip != "127.0.0.1" and client_ip != KINDLE_IP:
+                logger.info(f"Kindle IP updated from {KINDLE_IP} to {client_ip}")
+                KINDLE_IP = client_ip
 
         if parsed.path == "/health":
             self.send_response(200)

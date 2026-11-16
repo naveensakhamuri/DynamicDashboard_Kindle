@@ -2,15 +2,20 @@
 # Deploy auto-start service and permanent screensaver prevention to Kindle
 set -e
 
-# Target Kindle IP and Host Server IP (pass as arguments or set environment variables)
+# Target Kindle IP, Host Server IP, and Auth Token (pass as arguments or set environment variables)
 KINDLE_IP="${1:-${KINDLE_IP:-192.168.1.100}}"
 HOST_IP="${2:-${KINDLE_HOST_IP:-192.168.1.50}}"
+CFG_TOKEN=""
+if [ -f "dashboard/config.json" ]; then
+    CFG_TOKEN=$(python3 -c 'import json; print(json.load(open("dashboard/config.json")).get("kindle", {}).get("auth_token", ""))' 2>/dev/null || true)
+fi
+AUTH_TOKEN="${3:-${KINDLE_AUTH_TOKEN:-$CFG_TOKEN}}"
 KINDLE_KEY="${KINDLE_SSH_KEY:-${HOME}/.ssh/id_kindle}"
 
 echo "Checking connection to Kindle at $KINDLE_IP..."
 if ! ssh -i "$KINDLE_KEY" -o StrictHostKeyChecking=no -o ConnectTimeout=3 "root@$KINDLE_IP" "true" >/dev/null 2>&1; then
     echo "[!] Kindle ($KINDLE_IP) is not reachable yet. Please check Wi-Fi or plug in the Kindle."
-    echo "    Usage: ./dashboard/deploy_kindle_autostart.sh <KINDLE_IP> <HOST_SERVER_IP>"
+    echo "    Usage: ./dashboard/deploy_kindle_autostart.sh <KINDLE_IP> <HOST_SERVER_IP> [AUTH_TOKEN]"
     exit 1
 fi
 
@@ -20,6 +25,10 @@ ssh -i "$KINDLE_KEY" -o StrictHostKeyChecking=no "root@$KINDLE_IP" "/usr/sbin/mn
 echo "[2/4] Uploading updated touch_daemon.sh..."
 scp -i "$KINDLE_KEY" -o StrictHostKeyChecking=no dashboard/touch_daemon.sh "root@$KINDLE_IP:/mnt/us/dashboard/touch_daemon.sh"
 ssh -i "$KINDLE_KEY" -o StrictHostKeyChecking=no "root@$KINDLE_IP" "chmod +x /mnt/us/dashboard/touch_daemon.sh"
+if [ -n "$AUTH_TOKEN" ]; then
+    echo "Writing auth token to /mnt/us/dashboard/auth_token..."
+    ssh -i "$KINDLE_KEY" -o StrictHostKeyChecking=no "root@$KINDLE_IP" "printf '%s\n' '$AUTH_TOKEN' > /mnt/us/dashboard/auth_token && chmod 600 /mnt/us/dashboard/auth_token"
+fi
 
 echo "[3/4] Installing Upstart boot service (/etc/init/kindle_dashboard.conf)..."
 ssh -i "$KINDLE_KEY" -o StrictHostKeyChecking=no "root@$KINDLE_IP" "cat << EOF > /etc/init/kindle_dashboard.conf
